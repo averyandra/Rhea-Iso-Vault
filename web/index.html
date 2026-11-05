@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISO Vault | Rhea</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Red Glassmorphism Dark Theme */
+        body {
+            background-color: #050505;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(80, 0, 0, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(120, 10, 10, 0.1), transparent 25%);
+            color: #e5e5e5;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+        }
+        .glass-panel {
+            background: rgba(20, 0, 0, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 40, 40, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(255, 0, 0, 0.05);
+        }
+        .glass-row:hover {
+            background: rgba(255, 30, 30, 0.1);
+        }
+        .text-glow {
+            text-shadow: 0 0 12px rgba(255, 50, 50, 0.8);
+        }
+        .btn-red {
+            background: rgba(200, 20, 20, 0.2);
+            border: 1px solid rgba(255, 50, 50, 0.5);
+            transition: all 0.3s ease;
+        }
+        .btn-red:hover {
+            background: rgba(200, 20, 20, 0.5);
+            box-shadow: 0 0 15px rgba(255, 50, 50, 0.4);
+        }
+    </style>
+</head>
+<body class="p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-red-500 text-glow">ISO Vault</h1>
+                <p class="text-sm text-gray-400 mt-1">Local Network Image Repository</p>
+            </div>
+            <button id="scanBtn" class="btn-red text-red-400 px-6 py-2 rounded-md font-semibold tracking-wide flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Scan Directory
+            </button>
+        </header>
+
+        <div class="glass-panel rounded-xl overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-red-500/20 text-red-400/80 text-sm uppercase tracking-wider">
+                        <th class="p-4 font-medium">Filename</th>
+                        <th class="p-4 font-medium">Size (MB)</th>
+                        <th class="p-4 font-medium">Location Path</th>
+                        <th class="p-4 font-medium">Last Scanned</th>
+                    </tr>
+                </thead>
+                <tbody id="isoTableBody" class="text-sm text-gray-300">
+                    <!-- Populated by JavaScript -->
+                    <tr>
+                        <td colspan="4" class="p-8 text-center text-gray-500 animate-pulse">Loading data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // API Base URL (Adjust if your API runs on a different host/port)
+        const API_BASE_URL = 'http://127.0.0.1:8000'; 
+
+        const tableBody = document.getElementById('isoTableBody');
+        const scanBtn = document.getElementById('scanBtn');
+
+        // Fetch data from FastAPI
+        async function fetchISOs() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/isos`);
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    renderTable(result.data);
+                } else {
+                    tableBody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-red-400">Error: ${result.message}</td></tr>`;
+                }
+            } catch (error) {
+                tableBody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-red-400">Failed to connect to API server.</td></tr>`;
+            }
+        }
+
+        // Render table rows dynamically
+        function renderTable(data) {
+            if (data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-gray-500 italic">No ISO files found. Copy files to /srv/rhea-iso and scan.</td></tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = data.map(iso => `
+                <tr class="border-b border-red-500/10 glass-row transition-colors">
+                    <td class="p-4 font-mono text-red-100">${iso.filename}</td>
+                    <td class="p-4">${iso.size_mb}</td>
+                    <td class="p-4 text-xs text-gray-500 truncate max-w-xs" title="${iso.filepath}">${iso.filepath}</td>
+                    <td class="p-4 text-gray-400">${iso.last_scanned}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Trigger manual scan
+        scanBtn.addEventListener('click', async () => {
+            const originalText = scanBtn.innerHTML;
+            scanBtn.innerHTML = 'Scanning...';
+            scanBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/scan`, { method: 'POST' });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    await fetchISOs(); // Reload data silently
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Connection error while attempting to scan.');
+            } finally {
+                scanBtn.innerHTML = originalText;
+                scanBtn.disabled = false;
+            }
+        });
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', fetchISOs);
+    </script>
+</body>
+</html>

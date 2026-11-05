@@ -1,0 +1,25 @@
+# Environments
+.env
+venv/
+.venv/
+env/
+rhea-env/
+
+# Python Artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDE / Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
